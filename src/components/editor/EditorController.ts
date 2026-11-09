@@ -878,7 +878,7 @@ export class EditorController {
     if (this.aiStatus.available) {
       try {
         this.setBusy(`${this.aiStatus.label}が調整案を作成しています…`);
-        const res = await aiRefine(current, instruction);
+        const res = await aiRefine(current, instruction, this.size.width / this.size.height);
         patch = res.patch;
         source = res.provider ?? this.aiStatus.label ?? "AI";
       } catch (e) {

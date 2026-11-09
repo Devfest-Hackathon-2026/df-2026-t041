@@ -163,6 +163,8 @@ export interface DesignBrief {
   photoAspect?: number;
   /** Canvas aspect ratio width / height */
   canvasAspect: number;
+  /** Font family the user chose for all text; empty/undefined lets the design decide. */
+  fontFamily?: string;
 }
 
 /** Formats a price string for display without inventing information. */

@@ -38,8 +38,8 @@ export async function aiGenerate(brief: DesignBrief): Promise<{ designs: DesignS
   return { designs: data.designs.map((d) => designSpecSchema.parse(d)), provider: data.provider ?? null };
 }
 
-export async function aiRefine(current: DesignSpec, instruction: string): Promise<{ patch: RefinePatch; provider: string | null }> {
-  const res = await fetch("/api/ai/refine", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ current, instruction }) });
+export async function aiRefine(current: DesignSpec, instruction: string, canvasAspect?: number): Promise<{ patch: RefinePatch; provider: string | null }> {
+  const res = await fetch("/api/ai/refine", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ current, instruction, canvasAspect }) });
   if (!res.ok) throw new Error(await readError(res, `AI調整に失敗しました (HTTP ${res.status})`));
   const data = (await res.json()) as { patch: unknown; provider?: string };
   return { patch: refinePatchSchema.parse(data.patch), provider: data.provider ?? null };

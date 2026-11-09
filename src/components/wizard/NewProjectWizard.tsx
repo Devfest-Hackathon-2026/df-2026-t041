@@ -8,6 +8,7 @@ import { SIZE_PRESETS, customSize, type CanvasSize } from "@/lib/sizes";
 import { readImageFile } from "@/lib/image";
 import { generateDesigns } from "@/lib/design/generator";
 import type { DesignBrief, DesignSpec } from "@/lib/design/spec";
+import { FontSelect } from "@/components/FontSelect";
 import { AI_OFFLINE, aiGenerate, fetchAiStatus, type AiStatus } from "@/lib/ai/client";
 import { Field, NumberInput, Toast } from "@/components/ui";
 import { ProposalGrid } from "./ProposalGrid";
@@ -25,6 +26,7 @@ export function NewProjectWizard() {
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [fontFamily, setFontFamily] = useState("");
   const [photo, setPhoto] = useState<{ dataUrl: string; width: number; height: number } | null>(null);
   const [ai, setAi] = useState<AiStatus>(AI_OFFLINE);
   const [useAi, setUseAi] = useState(false);
@@ -51,6 +53,7 @@ export function NewProjectWizard() {
     hasPhoto: Boolean(photo),
     photoAspect: photo ? photo.width / photo.height : undefined,
     canvasAspect: size.width / size.height,
+    fontFamily: fontFamily || undefined,
   });
 
   const onPhoto = async (file: File) => {
@@ -97,7 +100,7 @@ export function NewProjectWizard() {
       const project = await createProjectFromSpec({
         spec,
         size,
-        brief: { shopName: shopName.trim(), productName: productName.trim(), price: price.trim(), description: description.trim(), prompt: prompt.trim() },
+        brief: { shopName: shopName.trim(), productName: productName.trim(), price: price.trim(), description: description.trim(), prompt: prompt.trim(), fontFamily: fontFamily || undefined },
         photoSrc: photo?.dataUrl,
       });
       router.push(`/editor/${project.id}`);
@@ -193,6 +196,9 @@ export function NewProjectWizard() {
                   </button>
                 ))}
               </div>
+              <Field label="フォント">
+                <FontSelect value={fontFamily} onChange={setFontFamily} allowAuto testId="input-font" preview={productName.trim() || "唐揚げ定食 780円"} />
+              </Field>
             </div>
           </div>
           <div className="flex flex-col gap-4">

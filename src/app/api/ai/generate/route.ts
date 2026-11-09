@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FONT_FAMILIES } from "@/lib/fonts";
 import { NOT_CONNECTED_MESSAGE, currentProvider, runWithFallback } from "@/lib/ai/provider";
 
 
@@ -11,6 +12,7 @@ const bodySchema = z.object({
   hasPhoto: z.boolean(),
   photoAspect: z.number().positive().optional(),
   canvasAspect: z.number().positive(),
+  fontFamily: z.enum(FONT_FAMILIES as [string, ...string[]]).optional(),
 });
 
 export async function POST(req: Request) {

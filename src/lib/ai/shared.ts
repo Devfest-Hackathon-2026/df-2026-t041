@@ -1,5 +1,5 @@
 import { designSpecSchema, formatPrice, refinePatchSchema, specElementSchema, stripPunctuation, type SpecElement, type DesignBrief, type DesignSpec, type RefinePatch } from "../design/spec";
-import { FONTS } from "../fonts";
+import { FONTS, fontDef, nearestWeight } from "../fonts";
 import { STYLES } from "../design/styles";
 
 const fontList = FONTS.map((f) => `"${f.family}" (${f.label}, weights ${f.weights.join("/")})`).join(", ");
@@ -71,7 +71,7 @@ export function briefText(brief: DesignBrief): string {
 説明文: ${brief.description || "(なし)"}
 雰囲気の指示: ${brief.prompt || "(指定なし)"}
 料理写真: ${brief.hasPhoto ? `あり（縦横比 ${brief.photoAspect?.toFixed(2) ?? "不明"}）` : "なし"}
-キャンバス縦横比 (width/height): ${brief.canvasAspect.toFixed(3)}`;
+キャンバス縦横比 (width/height): ${brief.canvasAspect.toFixed(3)}${brief.fontFamily ? `\nフォント指定: "${brief.fontFamily}"（すべての文字にこのフォントを使う。太さは ${fontDef(brief.fontFamily)?.weights.join("/") ?? "400"} から選ぶ）` : ""}`;
 }
 
 const HEX = /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8}|[0-9a-fA-F]{3})$/;
@@ -285,6 +285,11 @@ export function parseDesigns(parsed: unknown, provider: string, brief?: DesignBr
     for (const el of spec.elements) {
       if (el.kind !== "text") continue;
       if (price && el.role === "price") el.text = price;
+      // The user's font choice is a decision, not a suggestion: enforce it on every text.
+      if (brief?.fontFamily && fontDef(brief.fontFamily)) {
+        el.fontWeight = nearestWeight(brief.fontFamily, el.fontWeight);
+        el.fontFamily = brief.fontFamily;
+      }
       el.text = stripPunctuation(el.text);
     }
     return spec;
@@ -355,3 +360,70 @@ export function friendlyAiError(e: unknown): string {
 
 /** Per-call time limit for AI requests, in ms. */
 export const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS) || 45_000;
+
+/** Estimated text box (fractions of canvas width/height) for overlap checks. */
+function textBox(el: { role: string; text: string; x: number; y: number; w: number; fontSize: number; lineHeight?: number; charSpacing?: number }, aspect: number) {
+  const paras = el.text.split("\n");
+  const lines = SINGLE_LINE_ROLES.has(el.role)
+    ? paras.length
+    : paras.reduce((n, p) => n + Math.max(1, Math.ceil(estimateLineWidth(p, el.fontSize, el.charSpacing) / Math.max(el.w, 0.02))), 0);
+  const h = lines * el.fontSize * (el.lineHeight ?? 1.2) * aspect;
+  return { x: el.x, y: el.y, w: el.w, h };
+}
+
+function overlaps(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }, pad = 0.004): boolean {
+  return a.x < b.x + b.w - pad && b.x < a.x + a.w - pad && a.y < b.y + b.h - pad && b.y < a.y + a.h - pad;
+}
+
+/**
+ * After an AI edit, a resized or moved text can land on top of another text (e.g. a bigger price
+ * placed on the description's line). Move each changed text to the nearest free spot just above or
+ * below the text it collides with. `aspect` is canvas width / height.
+ */
+export function resolvePatchOverlaps(current: DesignSpec, patch: RefinePatch, aspect: number): RefinePatch {
+  if (!(aspect > 0)) return patch;
+  const removed = new Set(patch.remove);
+  const texts = new Map(
+    current.elements
+      .filter((e): e is Extract<SpecElement, { kind: "text" }> => e.kind === "text" && !removed.has(e.id))
+      .map((e) => [e.id, { ...e }]),
+  );
+  for (const ch of patch.changes) {
+    const t = texts.get(ch.id);
+    if (t) Object.assign(t, ch.set);
+  }
+  for (const ch of patch.changes) {
+    const t = texts.get(ch.id);
+    if (!t) continue;
+    const box = textBox(t, aspect);
+    const others = [...texts.values()].filter((o) => o.id !== t.id).map((o) => textBox(o, aspect));
+    const hit = others.find((o) => overlaps(box, o));
+    if (!hit) continue;
+    const gap = 0.012;
+    const candidates = [hit.y + hit.h + gap, hit.y - box.h - gap]
+      .filter((y) => y >= 0.02 && y + box.h <= 0.98)
+      .filter((y) => !others.some((o) => overlaps({ ...box, y }, o)))
+      .sort((a, b) => Math.abs(a - box.y) - Math.abs(b - box.y));
+    if (candidates.length > 0) {
+      const y = Math.round(candidates[0] * 1000) / 1000;
+      ch.set.y = y;
+      t.y = y;
+      continue;
+    }
+    // No free row: keep it on the same line, beside the other text, and shrink to fit the gap.
+    const r = (v: number) => Math.round(v * 1000) / 1000;
+    const onRight = box.x + box.w / 2 >= hit.x + hit.w / 2;
+    const nx = onRight ? hit.x + hit.w + gap : box.x;
+    const nw = onRight ? box.x + box.w - nx : hit.x - gap - box.x;
+    if (nw < 0.1) continue;
+    const need = estimateLineWidth(t.text.split("\n")[0], t.fontSize, t.charSpacing) * 1.08;
+    const fontSize = need > nw ? t.fontSize * (nw / need) : t.fontSize;
+    const squeezed = { ...t, x: nx, w: nw, fontSize };
+    if (others.some((o) => overlaps(textBox(squeezed, aspect), o))) continue;
+    ch.set.x = r(nx);
+    ch.set.w = r(nw);
+    ch.set.fontSize = r(fontSize);
+    Object.assign(t, { x: ch.set.x, w: ch.set.w, fontSize: ch.set.fontSize });
+  }
+  return patch;
+}

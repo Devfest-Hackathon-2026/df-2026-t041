@@ -6,6 +6,13 @@
 
 **デモ：https://prmaker-133131792767.asia-northeast1.run.app**（Cloud Run、ログイン不要）
 
+| 項目 | 内容 |
+| --- | --- |
+| チーム | DaitoAIStudio（DF-2026-T041） |
+| カテゴリ | クリエイティブ |
+| テーマとの関係 | AIは3案を出すだけ。選ぶのも直すのも人。AIの出力はサーバーで検証してから表示（[詳しく](docs/product-description.md#3-テーマown-the-why-build-with-intentとの関係)） |
+| 提出資料 | [プロダクト説明](docs/product-description.md)・[デモ動画](docs/demo.mp4)・[ピッチ資料](docs/pitch.pdf)・[アーキテクチャ図](docs/architecture.png)・[著作物利用シート](docs/copyright-sheet.md) |
+
 試し方：「新しいビラを作成」を押し、A4縦を選んで、商品名・価格・料理写真を入れて「デザイン案を3つ作成」を押します。作ったビラはブラウザ内に保存され、サーバーには残りません。
 
 | 3案の提案 | 日本語での調整 |
@@ -34,7 +41,7 @@
 - 新規作成ウィザード：用途・サイズ → 内容と写真 → 3案から選択
 - サイズ：A4 / A5（縦・横）、Instagram 正方形・縦型、カスタムサイズ
 - キャンバス編集（Fabric.js）：ドラッグ移動、リサイズ、整列ガイド、テキスト直接編集、レイヤー、図形・画像追加、元に戻す／やり直し
-- 日本語フォント5書体を同梱（ゴシック・丸ゴシック・明朝）
+- 日本語フォント30書体から選べる（ゴシック・明朝・丸ゴシック・ポップ・手書き）。新規作成時に選ぶと、AIの提案も含めて全案がそのフォントになる。フォントは Google Fonts から必要なときだけ読み込み、リポジトリには含めない
 - AI調整：自由な日本語の指示で、変更点だけを適用
 - 書き出し：PNG（印刷サイズは300dpi）、印刷用PDF（実寸mm）、再編集用プロジェクトファイル
 - 保存：ブラウザ内（IndexedDB）に自動保存。サーバーに個人データを置きません
@@ -47,27 +54,13 @@
 | **Vertex AI** | Cloud Run 上では Gemini を Vertex AI 経由で呼び出し、サービスアカウントで認証。APIキーを保存しません |
 | **Cloud Run** | アプリ本体のホスティング（Next.js standalone の Docker イメージ） |
 | **Cloud Build / Artifact Registry** | `gcloud run deploy --source .` によるソースからのビルドとイメージ保管 |
+| **Google Fonts** | チラシ用の日本語フォント30書体を、選ばれたときだけ配信元から読み込む |
 
-OpenAI API にも対応しています。キーを設定した場合に限り、Gemini が失敗したときの予備として自動で使われます。
+本番環境（Cloud Run）で使うAIは Gemini だけです。技術選定の比較と根拠（捨てた案を含む）は [プロダクト説明](docs/product-description.md#4-技術選定の理由採用した案捨てた案根拠) にまとめています。
 
 ## アーキテクチャ
 
-```mermaid
-flowchart LR
-  subgraph Browser["ブラウザ"]
-    W["新規作成ウィザード"] --> E["キャンバスエディタ<br/>Fabric.js"]
-    E --> X["PNG / PDF 書き出し<br/>pdf-lib"]
-    E <--> DB[("IndexedDB<br/>自動保存")]
-  end
-  subgraph CloudRun["Cloud Run（Next.js）"]
-    A["/api/ai/generate<br/>/api/ai/refine"] --> V["検証・修復<br/>zod スキーマ"]
-  end
-  W -- "商品情報・指示" --> A
-  E -- "現在のデザイン＋日本語指示" --> A
-  A -- "構造化JSON出力" --> G["Gemini<br/>Vertex AI"]
-  A -. "失敗時のみ" .-> O["OpenAI（任意）"]
-  V -- "デザイン仕様 / 差分パッチ" --> W & E
-```
+![Google Cloud アーキテクチャ図](docs/architecture.png)
 
 ### AI出力を信頼できるものにする工夫
 
@@ -80,7 +73,7 @@ flowchart LR
 - **色・線幅の正規化**：`transparent` やピクセル単位の線幅など、仕様外の値を変換します。
 - **句読点の除去**：チラシの文言から「、」「。」を外し、改行と空白で区切ります。
 - **応答速度**：レイアウトのJSONに深い推論は要らないので、Gemini 3 の思考レベルを LOW にしています。Vertex AI ではスキーマ制約付きの生成が非常に遅かったため、スキーマはプロンプトで示し、検証はサーバーで行います。3案の生成は約12〜20秒です。
-- **障害時の扱い**：1回の呼び出しは45秒で打ち切ります。上限超過や混雑は短い日本語メッセージで知らせ、予備のプロバイダか内蔵生成で続行します。
+- **障害時の扱い**：1回の呼び出しは45秒で打ち切ります。上限超過や混雑は短い日本語メッセージで知らせ、内蔵のルールベース生成で続行します。
 
 ## 運用コストの目安
 
@@ -113,7 +106,7 @@ GEMINI_API_KEY=...            # Google AI Studio のキー
 GOOGLE_GENAI_USE_VERTEXAI=true
 GOOGLE_CLOUD_PROJECT=your-project
 GOOGLE_CLOUD_LOCATION=global
-OPENAI_API_KEY=...            # 予備（任意）
+OPENAI_API_KEY=...            # 開発時の予備（任意。本番では未使用）
 ```
 
 ## Cloud Run へのデプロイ
@@ -130,7 +123,7 @@ PROJECT_ID=your-project ./scripts/deploy-cloudrun.sh
 2. 実行サービスアカウントに Vertex AI ユーザー権限を付与
 3. ソースからビルドして `asia-northeast1` にデプロイし、公開URLを表示
 
-Gemini は Vertex AI 経由で呼ばれるため、APIキーをデプロイする必要はありません。OpenAI を予備に使う場合は、Secret Manager に保存したシークレット名を `OPENAI_SECRET` に指定します。
+Gemini は Vertex AI 経由で呼ばれるため、APIキーをデプロイする必要はありません。
 
 ## テスト
 
@@ -144,7 +137,7 @@ npm run test:e2e
 
 ```bash
 npm run build
-GEMINI_MODEL=gemini-3.1-flash-lite OPENAI_MODEL=gpt-5.4-mini npm run start   # 別ターミナルで npm run test:e2e
+GEMINI_MODEL=gemini-3.1-flash-lite npm run start   # 別ターミナルで npm run test:e2e
 ```
 
 E2E テストは Playwright で、作成から編集、保存・復元、PNG/PDF 書き出し、サイズ変更、元に戻す、AI調整までを通しで確認します。書き出したファイルとスクリーンショットは `tests/output/` に保存されます。
@@ -154,18 +147,19 @@ E2E テストは Playwright で、作成から編集、保存・復元、PNG/PDF
 | パス | 内容 |
 | --- | --- |
 | `src/lib/design/` | デザイン仕様（zod スキーマ）、スタイル辞書、ルールベース生成、ローカル調整、Fabric との相互変換 |
-| `src/lib/ai/` | AIプロバイダ（`provider.ts` が選択と予備への切り替え、`gemini.ts` / `openai.ts`）、共通プロンプトと出力修復（`shared.ts`） |
+| `src/lib/ai/` | Gemini の呼び出し（`gemini.ts`）、プロバイダの選択（`provider.ts`）、共通プロンプトと出力の検証・修復（`shared.ts`） |
 | `src/app/api/ai/` | `status` / `generate` / `refine` のルートハンドラ |
 | `src/components/editor/` | エディタ（コントローラ、ツールバー、左右パネル、キャンバス） |
 | `src/components/wizard/` | 新規作成ウィザードと3案プレビュー |
 | `src/lib/db.ts` / `src/lib/export.ts` | IndexedDB 保存、PNG/PDF 書き出し |
 | `Dockerfile` / `scripts/deploy-cloudrun.sh` | Cloud Run 用イメージとデプロイ |
 | `tests/` | Playwright E2E |
+| `docs/` | 提出資料（プロダクト説明、デモ動画、ピッチ資料、アーキテクチャ図、著作物利用シート、スクリーンショット） |
 
 ## クレジット
 
-- スクリーンショットの料理写真：Wikimedia Commons「Classic Chicken Karaage - Sunoso 2023-11-28」（CC0）。リポジトリには含めていません。
-- 日本語フォント：Noto Sans JP / Noto Serif JP / Zen Kaku Gothic New / M PLUS Rounded 1c / しっぽり明朝（いずれも SIL Open Font License、`@fontsource` 経由）
+- スクリーンショットの料理写真：Wikimedia Commons「Classic Chicken Karaage - Sunoso 2023-11-28」（撮影 Andy Li、CC0）。リポジトリには含めていません。
+- 日本語フォント：Google Fonts の30書体（29書体が SIL Open Font License、Kosugi Maru が Apache License 2.0）。実行時に読み込み、リポジトリには含めていません
 
 ## 今後やりたいこと
 

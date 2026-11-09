@@ -1,5 +1,7 @@
 "use client";
 
+import { FontSelect } from "@/components/FontSelect";
+
 import { useRef } from "react";
 import { ActiveSelection, Ellipse, FabricImage, FabricObject, Line, Rect, Textbox } from "fabric";
 import {
@@ -217,13 +219,7 @@ function TextSettings({ obj }: { obj: Textbox }) {
       </Field>
       <div className="grid grid-cols-[1fr_88px] gap-2">
         <Field label="フォント">
-          <select className="ui-select" value={font.family} data-testid="font-family" onChange={(e) => void ed.setFont(obj, e.target.value)}>
-            {FONTS.map((f) => (
-              <option key={f.family} value={f.family}>
-                {f.label}
-              </option>
-            ))}
-          </select>
+          <FontSelect value={font.family} onChange={(f) => void ed.setFont(obj, f)} testId="font-family" />
         </Field>
         <Field label="太さ">
           <select className="ui-select" value={font.weights.includes(weight) ? weight : font.weights[0]} data-testid="font-weight" onChange={(e) => void ed.setFont(obj, font.family, Number(e.target.value))}>

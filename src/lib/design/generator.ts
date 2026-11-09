@@ -1,5 +1,6 @@
 import type { DesignBrief, DesignSpec, SpecElement, SpecText, TextRole } from "./spec";
 import { formatPrice, stripPunctuation } from "./spec";
+import { isKnownFont, nearestWeight } from "../fonts";
 import { detectStyle, type Palette, type StyleDef } from "./styles";
 
 /**
@@ -37,6 +38,8 @@ function text(ctx: Ctx, role: TextRole, t: string, opts: Partial<SpecText>): Spe
         : role === "shop"
           ? ctx.style.heading
           : ctx.style.body;
+  // The user's font choice wins over the style's typefaces.
+  const chosen = ctx.brief.fontFamily && isKnownFont(ctx.brief.fontFamily) ? ctx.brief.fontFamily : null;
   return {
     kind: "text",
     id: uid(role),
@@ -45,8 +48,8 @@ function text(ctx: Ctx, role: TextRole, t: string, opts: Partial<SpecText>): Spe
     x: 0.06,
     y: 0.5,
     w: 0.88,
-    fontFamily: base.family,
-    fontWeight: base.weight,
+    fontFamily: chosen ?? base.family,
+    fontWeight: chosen ? nearestWeight(chosen, base.weight) : base.weight,
     fontSize: 0.04 * ctx.s,
     fill: ctx.p.text,
     align: "left",

@@ -8,6 +8,7 @@ import { getMeta } from "@/lib/design/fabricBridge";
 import { generateDesigns } from "@/lib/design/generator";
 import type { DesignSpec } from "@/lib/design/spec";
 import { aiGenerate } from "@/lib/ai/client";
+import { FontSelect } from "@/components/FontSelect";
 import { ProposalGrid } from "../wizard/ProposalGrid";
 import { Field } from "../ui";
 
@@ -225,6 +226,9 @@ function DesignPanel() {
       </Field>
       <Field label="雰囲気の指示">
         <textarea className="ui-input h-16 resize-none py-1.5" value={brief.prompt} onChange={(e) => setBrief({ ...brief, prompt: e.target.value })} data-testid="design-prompt" />
+      </Field>
+      <Field label="フォント">
+        <FontSelect value={brief.fontFamily ?? ""} onChange={(f) => setBrief({ ...brief, fontFamily: f || undefined })} allowAuto testId="design-font" />
       </Field>
       <button className="ui-btn-primary" onClick={() => void generate()} disabled={working || !ed.ready} data-testid="regenerate">
         <Sparkles size={14} /> 3案を生成{ed.aiStatus.available ? `（${ed.aiStatus.label}）` : "（内蔵）"}

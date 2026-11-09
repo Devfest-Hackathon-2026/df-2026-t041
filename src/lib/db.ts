@@ -7,6 +7,8 @@ export interface ProjectBrief {
   price: string;
   description: string;
   prompt: string;
+  /** Font family chosen in the wizard, if any. */
+  fontFamily?: string;
 }
 
 export interface Project {
