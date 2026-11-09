@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --fg: #1b1f24;
+  --muted: #6b7280;
+  --border: #e3e6ea;
+  --accent: #2563eb;
+  --accent-fg: #ffffff;
+  --danger: #dc2626;
+  --font-ui: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-ui);
+}
+
+html,
+body {
+  height: 100%;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  opacity: 0.4;
+}
+
+.ui-input {
+  @apply h-8 w-full rounded-md border border-border bg-white px-2 text-[13px] text-fg outline-none transition-colors focus:border-accent;
+}
+
+.ui-select {
+  @apply h-8 w-full rounded-md border border-border bg-white px-2 text-[13px] text-fg outline-none focus:border-accent;
+}
+
+.ui-btn {
+  @apply inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-white px-3 text-[13px] font-medium text-fg transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.ui-btn-primary {
+  @apply inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-accent px-3 text-[13px] font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.ui-btn-icon {
+  @apply inline-flex h-8 w-8 items-center justify-center rounded-md text-fg transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40;
+}
+
+.ui-label {
+  @apply mb-1 block text-[11px] font-medium text-muted;
+}
+
+.ui-section-title {
+  @apply mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted;
+}
+
+.canvas-container {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.1);
+}
